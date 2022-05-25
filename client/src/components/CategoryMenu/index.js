@@ -3,6 +3,7 @@ import { UPDATE_CATEGORIES, UPDATE_CURRENT_CATEGORY } from '../../utils/actions'
 import { useQuery } from '@apollo/client';
 import { QUERY_CATEGORIES } from '../../utils/queries';
 import { useStoreContext } from '../../utils/GlobalState';
+import { idbPromise } from '../../utils/helpers';
 
 function CategoryMenu() {
   // on component use, immediately call useStoreContext Hook to retrieve the current state and dispatch from GSO
@@ -10,7 +11,7 @@ function CategoryMenu() {
   // we only need 'categories' from global state, so we destructure it from state. 
   const { categories } = state;
   //  need to take this data and use the dispatch method to set globals state
-  const { data: categoryData } = useQuery(QUERY_CATEGORIES);
+  const { loading, data: categoryData } = useQuery(QUERY_CATEGORIES);
 
   // useEffect triggers when useQuery data is returned and UE recognizes that category data is no longer undefined.
   useEffect(() => {
@@ -22,8 +23,22 @@ function CategoryMenu() {
         type: UPDATE_CATEGORIES,
         categories: categoryData.categories
       });
+
+      // also post useQuery data to indexedDB
+      categoryData.categories.forEach(category => {
+        idbPromise('categories', 'put', category);
+      });
     }
-  }, [categoryData, dispatch]);
+    else if (!loading) {
+      idbPromise('categories', 'get').then(categories => {
+        dispatch({
+          type: UPDATE_CATEGORIES,
+          categories: categories
+        });
+      });
+    }
+    // function is dependent on the loading state, so we include it in this array.
+  }, [categoryData, loading, dispatch]);
 
   // update click handler to update global state instead of using the function we recieve as a prop from Home component.
   const handleClick = id => {
