@@ -2,7 +2,6 @@ import React from 'react';
 import { useStoreContext } from '../../utils/GlobalState';
 import { REMOVE_FROM_CART, UPDATE_CART_QUANTITY } from '../../utils/actions';
 import { idbPromise } from '../../utils/helpers';
-import { parse } from 'graphql';
 
 const CartItem = ({ item }) =>  {
     const [, dispatch] = useStoreContext();
