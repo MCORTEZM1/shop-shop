@@ -1,6 +1,9 @@
 const { AuthenticationError } = require('apollo-server-express');
 const { User, Product, Category, Order } = require('../models');
 const { signToken } = require('../utils/auth');
+// once you create a real stripe account, you would include key in a: process.env.STRIPE_KEY
+const stripe = require('stripe')('sk_test_4eC39HqLyjWDarjtT1zdp7dc');
+
 
 const resolvers = {
   Query: {
@@ -50,6 +53,43 @@ const resolvers = {
       }
 
       throw new AuthenticationError('Not logged in');
+    },
+    checkout: async (parent, args, context) => {
+      const order = new Order({ products: args.products });
+      const { products } = order.populate('products');
+
+      const line_items = [];
+
+      for (let i = 0; i < products.length; i++) {
+        // generate product id
+        const product = await stripe.products.create({
+          name: products[i].name,
+          description: products[i].description
+        });
+        
+        // generate price id using the product id
+        const price = await stripe.prices.create({
+          product: product.id,
+          unit_amount: products[i].price * 100,
+          currency: 'usd',
+        });
+      
+        // add price id to the line items array
+        line_items.push({
+          price: price.id,
+          quantity: 1
+        });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items,
+        mode: 'payment',
+        success_url: 'https://example.com/success?session_id=cs_test_a1RRQqfAtwkqRZFAbpcIrLnsWoFvv1mz5d1B0W57zsdoQVAyuj21azaD1f',
+        cancel_url: 'https://example.com/cancel'
+      });
+
+      return { session: session.id }
     }
   },
   Mutation: {
