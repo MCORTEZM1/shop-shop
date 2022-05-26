@@ -21,9 +21,7 @@ function Signup(props) {
     const token = mutationResponse.data.addUser.token;
     Auth.login(token);
 
-    setTimeout(() => {
-      window.location.assign('/')
-    }, 2000)
+    window.location.assign('/')
   };
 
   const handleChange = (event) => {
