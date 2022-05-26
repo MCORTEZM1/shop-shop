@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useLazyQuery } from '@apollo/client';
 import CartItem from '../CartItem';
 import Auth from '../../utils/auth';
 import './style.css';
@@ -7,11 +8,20 @@ import './style.css';
 // global store 
 import { useStoreContext } from '../../utils/GlobalState';
 import { TOGGLE_CART, ADD_MULTIPLE_TO_CART } from '../../utils/actions';
+import { QUERY_CHECKOUT } from '../../utils/queries';
+import { loadStripe } from '@stripe/stripe-js';
 
 import { idbPromise } from '../../utils/helpers';
 
+// test stripe API key included
+const stripePromise = loadStripe('pk_test_TYooMQauvdEDq54NiTphI7jx')
+
 const Cart = () => {
     const [state, dispatch] = useStoreContext();
+
+    // add lazyQuery to query checkout- like regular useQuery, but doesnt render on component load, instead when called
+    // data variable will contain the checkout session after the query is called with the getCheckout function.
+    const [getCheckout, {data}] = useLazyQuery(QUERY_CHECKOUT);
 
     // check if there's anything in the state's cart property on load 
     useEffect(() => {
@@ -29,20 +39,40 @@ const Cart = () => {
         // but then it only runs again if any value in the dependency array has changed since the last time it ran.
     }, [state.cart.length, dispatch])
 
-    console.log("From Cart: I`m the State : ", state);
+    useEffect(() => {
+        if (data) {
+            stripePromise.then((res) => {
+                res.redirectToCheckout({ sessionId: data.checkout.session })
+            })
+        }
+    }, [data])
 
     function toggleCart() {
         dispatch({ type: TOGGLE_CART });
     }
 
-    function calculateTotal() {{
+    function calculateTotal() {
         let sum = 0;
         state.cart.forEach(item => {
             sum += item.price * item.purchaseQuantity
         });
 
         return sum.toFixed(2);
-    }}
+    }
+
+    function submitCheckout() {
+        const productIds = [];
+
+        state.cart.forEach((item) => {
+            for (let i = 0; i < item.purchaseQuantity; i++) {
+                productIds.push(item._id);
+            }
+        });
+
+        getCheckout({
+            variables: { products: productIds }
+        });
+    }
 
     if (!state.cartOpen) {
         return (
@@ -67,7 +97,7 @@ const Cart = () => {
                     <strong>Total: ${calculateTotal()}</strong>
                     {
                         Auth.loggedIn() ? 
-                            <button>
+                            <button onClick={submitCheckout}>
                                 Checkout
                             </button>
                             :
