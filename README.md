@@ -3,7 +3,7 @@
 
   ## **Live Heroku Application**
 
-  - https://neotechblog.herokuapp.com/
+  - https://shop-till-u-drop.herokuapp.com/
 
   ## **Description**
    
